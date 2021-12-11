@@ -1,12 +1,13 @@
 import io
 import json
+from math import exp
 import os
 import random
 import string
 import tkinter as tk
-import urllib
 import requests
-
+import shutil
+from lxml import html
 from tkinter import *
 from tkinter import ttk
 from urllib.request import Request, urlopen
@@ -39,30 +40,40 @@ class Prntsc:
 
     def getSoup(self):
 
-        # create random suffix
-        self.createSuffix()
+        suffixes = []
+        # set max downloads
+        for i in range(100):
+            # append random suffix
+            suffixes.append(self.createSuffix())
+            req = requests.get("https://prnt.sc/" + suffixes[i], headers={
+                'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0"})
 
-        # send request
-        url = self.url_prefix + self.url_suffix
-        # send request to website
-        res = requests.get(
-            url, headers={"User-Agent": self.userAgent}, allow_redirects=False)
+            # get curent tree
+            tree = html.fromstring(req.content)
 
-        if(res.status_code == 200):
-            soup = BeautifulSoup(res, "lxml")
-        else:
-            soup = ""
+            # get url
+            url = ''.join(tree.xpath('//img[@id="screenshot-image"]/@src'))
 
-        ourimageurl = None
-
-        try:
-            # find img
-            if(soup != None and soup != ""):
-                ourimageurl = soup.find(id='screenshot-image')['src']
-        except TypeError:
-            pass
-
-        return ourimageurl
+            if ("//st" not in url):
+                if("/image/" not in url):
+                    if(url != ""):
+                        try:
+                            # get image from url
+                            req = requests.get(url, stream=True)
+                            if req.status_code == 200:
+                                # save as image
+                                with open("images/" + suffixes[i] + ".png", "wb") as file:
+                                    # decode request
+                                    req.raw.decode_content = True
+                                    shutil.copyfileobj(req.raw, file)
+                                    # TODO: add log message for found image
+                        except Exception as e:
+                            print(e)
+                            # TODO: add log message
+                            pass
+                        else:
+                            print('No Image was found in this link')
+                            # TODO: add log message
 
     def createSuffix(self, char=string.ascii_uppercase + string.digits + string.ascii_lowercase):
         self.url_suffix = ''.join(random.choice(char)
@@ -71,38 +82,10 @@ class Prntsc:
         exists = self.json.checkData(
             self.url_suffix, "prntsc.usedNumbers", "database.json")
         if(exists):
+            print("Suffix was already used")
             self.createSuffix()
         else:
-
-            # check if img is available
-            check = self.checkAvailable(self.url_prefix + self.url_suffix)
-            print(check)
-            if(check == False):
-                self.createSuffix()
-            else:
-                return self
-
-    def checkAvailable(self, url):
-
-        # send request to website
-        print(url)
-        html_req = requests.get(
-            url, headers={"User-Agent": self.userAgent}, allow_redirects=False)
-
-        if html_req.status_code == 302:
-            return 302
-
-        # create soup from request
-        soup = BeautifulSoup(html_req.content, "html.parser")
-        images = soup.find_all("img", {"class": "no-click screenshot-image"})
-
-        for tag in images:
-            src_img_from_html = tag["src"]
-
-            if not src_img_from_html.startswith("http"):
-                return False
-            else:
-                return True
+            return self.url_suffix
 
 
 class GUI:
