@@ -143,23 +143,22 @@ class JsonData:
             # convert back to json.
             json.dump(file_data, file, indent=4)
 
-    def checkData(self, data, json_object, file_name):
+    def checkData(self, data, file_name, json_object=None,):
         """ Check if data already exists in json file. Returns False or True"""
-
+    
         # open json
         with open(file_name, 'r+') as file:
             json_data = json.load(file)
-            
-        # split objects
-        array  = json_object.split(".")
-        
-        # go to deepest object
-        for a in array:
-            json_data = json_data[a]
-            
+
+        if(json_object):
+            # split objects
+            array = json_object.split(".")
+            # go to deepest object
+            for a in array:
+                json_data = json_data[a]
+
         # check if exists
         for i in json_data.keys():
             if str(data) == str(json_data[i]):
                 return True
         return False
-        
